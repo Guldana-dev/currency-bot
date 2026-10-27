@@ -1,25 +1,70 @@
 
+import os
+import json
+import urllib.request
 import urllib.error
 import telebot
+from telebot import types
 
-from config import TOKEN
-from currency_service import get_exchange_rate
-from keyboards import (
-    USD,
-    EUR,
-    RUB,
-    CNY,
-    OTHER_CURRENCY,
-    ANOTHER_AMOUNT,
-    CURRENCIES,
-    currency_keyboard,
-    action_keyboard,
-)
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+if not TOKEN:
+    raise ValueError("Токен не найден!")
 
 bot = telebot.TeleBot(TOKEN)
 
 # Запоминаем валюту для каждого чата
 user_currencies = {}
+
+# Названия кнопок
+USD = "🇺🇸 USD"
+EUR = "🇪🇺 EUR"
+RUB = "🇷🇺 RUB"
+CNY = "🇨🇳 CNY"
+
+OTHER_CURRENCY = "🔄 Другая валюта"
+ANOTHER_AMOUNT = "🔢 Ещё сумма"
+
+CURRENCIES = [USD, EUR, RUB, CNY]
+
+
+# Клавиатура выбора валюты
+def currency_keyboard():
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(USD, EUR, RUB, CNY)
+    return keyboard
+
+
+# Клавиатура после выбора валюты
+def action_keyboard():
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(ANOTHER_AMOUNT, OTHER_CURRENCY)
+    return keyboard
+
+
+# Получаем актуальный доступный курс
+def get_exchange_rate(currency):
+    url = f"https://open.er-api.com/v6/latest/{currency}"
+
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "CurrencyBot/1.0"}
+    )
+
+    with urllib.request.urlopen(request, timeout=15) as response:
+        data = json.loads(response.read().decode("utf-8"))
+
+    if data.get("result") != "success":
+        raise ValueError("Сервис не вернул курс.")
+
+    rates = data.get("rates", {})
+
+    if "KZT" not in rates:
+        raise ValueError("Курс тенге не найден.")
+
+    return rates["KZT"], data.get(
+        "time_last_update_utc", "не указано"
+    )
 
 
 # Запуск бота
@@ -128,5 +173,4 @@ def convert_currency(message):
 
 
 print("Бот запущен!")
-
 bot.infinity_polling()
