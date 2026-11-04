@@ -9,8 +9,10 @@ CNY = "🇨🇳 CNY"
 
 OTHER_CURRENCY = "🔄 Другая валюта"
 ANOTHER_AMOUNT = "🔢 Ещё сумма"
+MAIN_MENU = "🏠 Главное меню"
 
 PROFILE = "👤 Мой профиль"
+BALANCE = "💰 Баланс"
 EDIT_PROFILE = "✏️ Изменить профиль"
 BACK = "⬅️ Назад"
 
@@ -21,6 +23,7 @@ CURRENCIES = [USD, EUR, RUB, CNY]
 def currency_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(USD, EUR, RUB, CNY)
+    keyboard.add(MAIN_MENU)
     return keyboard
 
 
@@ -28,13 +31,14 @@ def currency_keyboard():
 def action_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(ANOTHER_AMOUNT, OTHER_CURRENCY)
+    keyboard.add(MAIN_MENU)
     return keyboard
 
 
 # Главное меню
 def main_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.add(PROFILE)
+    keyboard.add(PROFILE, BALANCE)
     keyboard.add(USD, EUR, RUB, CNY)
     return keyboard
 
