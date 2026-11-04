@@ -3,11 +3,13 @@ import urllib.error
 import telebot
 
 from config import TOKEN
-from database import init_db, get_user, save_user
+from database import init_db, get_user, save_user, get_balance
 from currency_service import get_exchange_rate
 from keyboards import (
     PROFILE,
+    BALANCE,
     EDIT_PROFILE,
+    MAIN_MENU,
     main_keyboard,
     profile_keyboard,
     USD,
@@ -138,7 +140,27 @@ def show_profile(message):
     )
 
 
-# Пользователь начинает редактирование профиля
+# Пользователь просматривает свой баланс
+@bot.message_handler(
+    func=lambda message: message.text == BALANCE
+)
+def show_balance(message):
+    telegram_id = message.from_user.id
+    balance = get_balance(telegram_id)
+
+    if balance is None:
+        bot.send_message(
+            message.chat.id,
+            "Сначала зарегистрируйся через /start."
+        )
+        return
+
+    bot.send_message(
+        message.chat.id,
+        f"💰 Твой баланс: {balance} единиц"
+    )
+
+    # Пользователь начинает редактирование профиля
 @bot.message_handler(
     func=lambda message: message.text == EDIT_PROFILE
 )
@@ -161,6 +183,16 @@ def back_to_main(message):
     bot.send_message(
         message.chat.id,
         "Главное меню. Выбери валюту или свой профиль:",
+        reply_markup=main_keyboard()
+    )
+# Возврат в главное меню из конвертера
+@bot.message_handler(
+    func=lambda message: message.text == MAIN_MENU
+)
+def return_to_main_menu(message):
+    bot.send_message(
+        message.chat.id,
+        "🏠 Главное меню. Выбери нужный раздел:",
         reply_markup=main_keyboard()
     )
 
