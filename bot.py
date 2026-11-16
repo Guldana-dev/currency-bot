@@ -9,6 +9,7 @@ from keyboards import (
     PROFILE,
     BALANCE,
     EDIT_PROFILE,
+    MAIN_MENU,
     main_keyboard,
     profile_keyboard,
     USD,
@@ -182,6 +183,16 @@ def back_to_main(message):
     bot.send_message(
         message.chat.id,
         "Главное меню. Выбери валюту или свой профиль:",
+        reply_markup=main_keyboard()
+    )
+# Возврат в главное меню из конвертера
+@bot.message_handler(
+    func=lambda message: message.text == MAIN_MENU
+)
+def return_to_main_menu(message):
+    bot.send_message(
+        message.chat.id,
+        "🏠 Главное меню. Выбери нужный раздел:",
         reply_markup=main_keyboard()
     )
 
