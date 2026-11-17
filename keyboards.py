@@ -43,9 +43,25 @@ def main_keyboard():
     return keyboard
 
 
+
 # Меню профиля
 def profile_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(EDIT_PROFILE)
     keyboard.add(BACK)
+    return keyboard
+
+# Клавиатура подтверждения номера телефона
+def phone_keyboard():
+    keyboard = types.ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+    button = types.KeyboardButton(
+        "📱 Подтвердить номер телефона",
+        request_contact=True
+    )
+
+    keyboard.add(button)
     return keyboard
