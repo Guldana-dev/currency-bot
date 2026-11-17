@@ -62,3 +62,37 @@ def test_old_database_gets_balance_column(tmp_path, monkeypatch):
     database.init_db()
 
     assert database.get_balance(123) == 1000
+    
+def test_new_user_is_not_verified(tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(database, "DB_NAME", str(db_path))
+
+    database.init_db()
+    database.save_user(123, "Test", "User")
+
+    assert database.is_user_verified(123) is False
+
+
+def test_verify_user_saves_phone_number(tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(database, "DB_NAME", str(db_path))
+
+    database.init_db()
+    database.save_user(123, "Test", "User")
+
+    result = database.verify_user(123, "+77001234567")
+
+    assert result is True
+    assert database.is_user_verified(123) is True
+    assert database.get_phone_number(123) == "+77001234567"
+
+
+def test_unknown_user_cannot_be_verified(tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(database, "DB_NAME", str(db_path))
+
+    database.init_db()
+
+    assert database.verify_user(999, "+77001234567") is False
+    assert database.is_user_verified(999) is False
+
