@@ -3,7 +3,14 @@ import urllib.error
 import telebot
 
 from config import TOKEN
-from database import init_db, get_user, save_user, get_balance
+from database import (
+    init_db,
+    get_user,
+    save_user,
+    get_balance,
+    verify_user,
+    is_user_verified,
+)
 from currency_service import get_exchange_rate
 from keyboards import (
     PROFILE,
@@ -21,6 +28,7 @@ from keyboards import (
     CURRENCIES,
     currency_keyboard,
     action_keyboard,
+    phone_keyboard,
 )
 
 bot = telebot.TeleBot(TOKEN)
@@ -32,6 +40,7 @@ user_currencies = {}
 user_states = {}
 
 # Запуск бота
+
 
 @bot.message_handler(commands=["start"])
 def start(message):
@@ -45,6 +54,17 @@ def start(message):
             "Привет! Давай познакомимся 😊\n"
             "Как тебя зовут? Введи своё имя:"
         )
+
+    elif not is_user_verified(telegram_id):
+        user_states[telegram_id] = "verify_phone"
+        bot.send_message(
+            message.chat.id,
+            f"С возвращением, {user[0]}! 😊\n\n"
+            "Чтобы продолжить, подтверди свой номер телефона.\n"
+            "Нажми кнопку ниже:",
+            reply_markup=phone_keyboard()
+        )
+
     else:
         bot.send_message(
             message.chat.id,
@@ -79,6 +99,7 @@ def register_first_name(message):
     )
 
 
+
 # Пользователь вводит фамилию
 @bot.message_handler(
     func=lambda message:
@@ -102,18 +123,20 @@ def register_last_name(message):
         bot.send_message(message.chat.id, "Введи своё имя:")
         return
 
+    # Сохраняем ФИО
     save_user(telegram_id, first_name, last_name)
 
-    user_states.pop(telegram_id, None)
     user_states.pop(f"{telegram_id}_first_name", None)
+    user_states[telegram_id] = "verify_phone"
 
     bot.send_message(
         message.chat.id,
         f"Готово, {first_name}! 🎉\n"
-        "Твои данные сохранены.\n"
-        "Теперь можешь пользоваться конвертером валют.",
-        reply_markup=main_keyboard()
+        "Твои данные сохранены.\n\n"
+        "Теперь подтверди свой номер телефона:",
+        reply_markup=phone_keyboard()
     )
+
 
 # Пользователь открывает свой профиль
 @bot.message_handler(
@@ -124,10 +147,9 @@ def show_profile(message):
     user = get_user(telegram_id)
 
     if user is None:
-        user_states[telegram_id] = "register_first_name"
         bot.send_message(
             message.chat.id,
-            "Сначала давай познакомимся! Как тебя зовут?"
+            "Сначала давай познакомимся!"
         )
         return
 
@@ -139,6 +161,52 @@ def show_profile(message):
         reply_markup=profile_keyboard()
     )
 
+
+# Пользователь подтверждает номер телефона
+@bot.message_handler(
+    content_types=["contact"],
+    func=lambda message:
+    user_states.get(message.from_user.id) == "verify_phone"
+)
+def verify_phone(message):
+    contact = message.contact
+    telegram_id = message.from_user.id
+
+    # Проверяем, что пользователь отправил собственный контакт
+    if contact.user_id is None or contact.user_id != telegram_id:
+        bot.send_message(
+            message.chat.id,
+            "❌ Нужно отправить свой собственный номер телефона.",
+            reply_markup=phone_keyboard()
+        )
+        return
+
+    # Проверяем наличие ФИО
+    user = get_user(telegram_id)
+
+    if user is None or not user[0] or not user[1]:
+        bot.send_message(
+            message.chat.id,
+            "Сначала необходимо заполнить имя и фамилию."
+        )
+        return
+
+    # Сохраняем номер и подтверждаем пользователя
+    if not verify_user(telegram_id, contact.phone_number):
+        bot.send_message(
+            message.chat.id,
+            "❌ Не удалось подтвердить номер. Попробуй ещё раз.",
+            reply_markup=phone_keyboard()
+        )
+        return
+
+    user_states.pop(telegram_id, None)
+    bot.send_message(
+        message.chat.id,
+        "✅ Номер телефона успешно подтверждён!\n"
+        "Теперь тебе доступны функции бота.",
+        reply_markup=main_keyboard()
+    )
 
 # Пользователь просматривает свой баланс
 @bot.message_handler(
@@ -160,7 +228,7 @@ def show_balance(message):
         f"💰 Твой баланс: {balance} единиц"
     )
 
-    # Пользователь начинает редактирование профиля
+# Пользователь начинает редактирование профиля
 @bot.message_handler(
     func=lambda message: message.text == EDIT_PROFILE
 )
@@ -242,11 +310,15 @@ def other_currency(message):
 
 # Обработка введённой суммы
 @bot.message_handler(
-    func=lambda message:
-    message.text is not None
-    and message.chat.id in user_currencies
-    and message.text not in CURRENCIES
-    and message.text not in [OTHER_CURRENCY, ANOTHER_AMOUNT]
+    func=lambda message: (
+        message.text is not None
+        and message.chat.id in user_currencies
+        and user_states.get(message.from_user.id) not in [
+
+        ]
+        and message.text not in CURRENCIES
+        and message.text not in [OTHER_CURRENCY, ANOTHER_AMOUNT]
+    )
 )
 def convert_currency(message):
     try:
