@@ -10,11 +10,13 @@ from database import (
     get_balance,
     verify_user,
     is_user_verified,
+    get_user_by_phone,
 )
 from currency_service import get_exchange_rate
 from keyboards import (
     PROFILE,
     BALANCE,
+    TRANSFER,
     EDIT_PROFILE,
     MAIN_MENU,
     main_keyboard,
@@ -227,6 +229,93 @@ def show_balance(message):
         message.chat.id,
         f"💰 Твой баланс: {balance} единиц"
     )
+# Пользователь начинает поиск получателя перевода
+@bot.message_handler(
+    func=lambda message: message.text == TRANSFER
+)
+def start_transfer(message):
+    telegram_id = message.from_user.id
+
+    if not is_user_verified(telegram_id):
+        bot.send_message(
+            message.chat.id,
+            "❌ Для переводов необходимо подтвердить "
+            "свой номер телефона."
+        )
+        return
+
+    user_states[telegram_id] = "transfer_phone"
+
+    bot.send_message(
+        message.chat.id,
+        "💸 Перевод денег\n\n"
+        "Введи номер телефона получателя:\n"
+        "Например: +77001234567"
+    )
+
+# Поиск получателя перевода по номеру телефона
+@bot.message_handler(
+    func=lambda message: (
+        message.content_type == "text"
+        and user_states.get(message.from_user.id) == "transfer_phone"
+    )
+)
+def find_transfer_recipient(message):
+    telegram_id = message.from_user.id
+    phone_number = (message.text or "").strip()
+
+    if phone_number == MAIN_MENU:
+        user_states.pop(telegram_id, None)
+        bot.send_message(
+            message.chat.id,
+            "🏠 Главное меню",
+            reply_markup=main_keyboard()
+        )
+        return
+
+    if not phone_number.startswith("+") or not phone_number[1:].isdigit():
+        bot.send_message(
+            message.chat.id,
+            "❌ Введи номер в формате +77001234567."
+        )
+        return
+
+    recipient = get_user_by_phone(phone_number)
+
+    if recipient is None:
+        bot.send_message(
+            message.chat.id,
+            "❌ Пользователь с таким номером не найден."
+        )
+        return
+
+    recipient_id, first_name, last_name, balance, is_verified = recipient
+
+    if recipient_id == telegram_id:
+        bot.send_message(
+            message.chat.id,
+            "❌ Нельзя перевести деньги самому себе."
+        )
+        return
+
+    if not is_verified:
+        bot.send_message(
+            message.chat.id,
+            "❌ Получатель ещё не прошёл верификацию."
+        )
+        return
+
+    user_states.pop(telegram_id, None)
+
+    bot.send_message(
+        message.chat.id,
+        f"✅ Получатель найден!\n\n"
+        f"👤 {first_name} {last_name}\n"
+        f"📱 {phone_number}\n\n"
+        "Поиск получателя успешно завершён.",
+        reply_markup=main_keyboard()
+    )
+
 
 # Пользователь начинает редактирование профиля
 @bot.message_handler(
@@ -314,8 +403,12 @@ def other_currency(message):
         message.text is not None
         and message.chat.id in user_currencies
         and user_states.get(message.from_user.id) not in [
-
+            "register_first_name",
+            "register_last_name",
+            "verify_phone",
+            "transfer_phone",
         ]
+
         and message.text not in CURRENCIES
         and message.text not in [OTHER_CURRENCY, ANOTHER_AMOUNT]
     )

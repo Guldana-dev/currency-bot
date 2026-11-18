@@ -141,3 +141,20 @@ def get_phone_number(telegram_id):
         result = cursor.fetchone()
 
         return result[0] if result else None
+
+
+def get_user_by_phone(phone_number):
+    phone_number = phone_number.strip().lstrip("+")
+
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.execute(
+            """
+            SELECT telegram_id, first_name, last_name,
+                   balance, is_verified
+            FROM users
+            WHERE LTRIM(phone_number, '+') = ?
+            """,
+            (phone_number,)
+        )
+
+        return cursor.fetchone()
