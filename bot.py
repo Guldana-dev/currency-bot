@@ -459,8 +459,9 @@ def convert_currency(message):
         )
 
 
-init_db()
+if __name__ == "__main__":
+    init_db()
 
-print("Бот запущен!")
+    print("Бот запущен!")
 
-bot.infinity_polling()
+    bot.infinity_polling()
