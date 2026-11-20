@@ -233,14 +233,19 @@ def show_balance(message):
 @bot.message_handler(
     func=lambda message: message.text == TRANSFER
 )
+
 def start_transfer(message):
     telegram_id = message.from_user.id
 
     if not is_user_verified(telegram_id):
+        user_states[telegram_id] = "verify_phone"
+
         bot.send_message(
             message.chat.id,
             "❌ Для переводов необходимо подтвердить "
-            "свой номер телефона."
+            "свой номер телефона.\n\n"
+            "Нажми кнопку ниже 👇",
+            reply_markup=phone_keyboard()
         )
         return
 
