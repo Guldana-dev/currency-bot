@@ -172,6 +172,16 @@ def verify_phone(message):
     contact = message.contact
     telegram_id = message.from_user.id
 
+    # Не позволяем повторно верифицировать пользователя
+    if is_user_verified(telegram_id):
+        user_states.pop(telegram_id, None)
+        bot.send_message(
+            message.chat.id,
+            "✅ Твой номер телефона уже подтверждён!",
+            reply_markup=main_keyboard()
+        )
+        return
+
     # Проверяем, что пользователь отправил собственный контакт
     if contact.user_id is None or contact.user_id != telegram_id:
         bot.send_message(
@@ -361,8 +371,7 @@ def convert_currency(message):
         )
 
 
-init_db()
-
-print("Бот запущен!")
-
-bot.infinity_polling()
+if __name__ == "__main__":
+    init_db()
+    print("Бот запущен!")
+    bot.infinity_polling()
