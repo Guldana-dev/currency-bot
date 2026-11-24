@@ -31,6 +31,7 @@ from keyboards import (
     currency_keyboard,
     action_keyboard,
     phone_keyboard,
+    transfer_keyboard,
 )
 
 bot = telebot.TeleBot(TOKEN)
@@ -40,6 +41,9 @@ user_currencies = {}
 
 # Запоминаем, на каком этапе находится пользователь
 user_states = {}
+
+# Запоминаем получателя перевода
+transfer_recipients = {}
 
 # Запуск бота
 
@@ -320,17 +324,84 @@ def find_transfer_recipient(message):
         )
         return
 
-    user_states.pop(telegram_id, None)
+    transfer_recipients[telegram_id] = recipient_id
+    user_states[telegram_id] = "transfer_amount"
 
     bot.send_message(
         message.chat.id,
         f"✅ Получатель найден!\n\n"
         f"👤 {first_name} {last_name}\n"
         f"📱 {phone_number}\n\n"
-        "Поиск получателя успешно завершён.",
-        reply_markup=main_keyboard()
+        "Введи сумму перевода:",
+        reply_markup=transfer_keyboard()
     )
 
+# Проверка суммы перевода
+@bot.message_handler(
+    func=lambda message: (
+        message.content_type == "text"
+        and user_states.get(message.from_user.id) == "transfer_amount"
+    )
+)
+def validate_transfer_amount(message):
+    telegram_id = message.from_user.id
+
+    if message.text == MAIN_MENU:
+        user_states.pop(telegram_id, None)
+        transfer_recipients.pop(telegram_id, None)
+
+        bot.send_message(
+            message.chat.id,
+            "Перевод отменён. 🏠 Главное меню",
+            reply_markup=main_keyboard()
+        )
+        return
+
+    try:
+        amount = int(message.text.strip())
+    except ValueError:
+        bot.send_message(
+            message.chat.id,
+            "❌ Введи целое число."
+        )
+        return
+
+    if amount <= 0:
+        bot.send_message(
+            message.chat.id,
+            "❌ Сумма должна быть больше нуля."
+        )
+        return
+
+    balance = get_balance(telegram_id)
+
+    if balance is None or amount > balance:
+        bot.send_message(
+            message.chat.id,
+            "❌ Недостаточно средств на балансе."
+        )
+        return
+
+    recipient_id = transfer_recipients.get(telegram_id)
+
+    if recipient_id is None or not is_user_verified(recipient_id):
+        bot.send_message(
+            message.chat.id,
+            "❌ Получатель недоступен для перевода.",
+            reply_markup=main_keyboard()
+        )
+        user_states.pop(telegram_id, None)
+        transfer_recipients.pop(telegram_id, None)
+        return
+
+    user_states.pop(telegram_id, None)
+    transfer_recipients.pop(telegram_id, None)
+
+    bot.send_message(
+        message.chat.id,
+        "✅ Проверка перевода успешно пройдена!",
+        reply_markup=main_keyboard()
+    )
 
 # Пользователь начинает редактирование профиля
 @bot.message_handler(
