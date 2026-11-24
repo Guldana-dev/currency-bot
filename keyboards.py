@@ -67,3 +67,11 @@ def phone_keyboard():
 
     keyboard.add(button)
     return keyboard
+
+# Клавиатура для перевода денег
+def transfer_keyboard():
+    keyboard = types.ReplyKeyboardMarkup(
+        resize_keyboard=True
+    )
+    keyboard.add(MAIN_MENU)
+    return keyboard
