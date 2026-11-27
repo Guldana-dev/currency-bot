@@ -13,6 +13,7 @@ MAIN_MENU = "🏠 Главное меню"
 
 PROFILE = "👤 Мой профиль"
 BALANCE = "💰 Баланс"
+TRANSFER = "💸 Перевод"
 EDIT_PROFILE = "✏️ Изменить профиль"
 BACK = "⬅️ Назад"
 
@@ -39,6 +40,7 @@ def action_keyboard():
 def main_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(PROFILE, BALANCE)
+    keyboard.add(TRANSFER)
     keyboard.add(USD, EUR, RUB, CNY)
     return keyboard
 
